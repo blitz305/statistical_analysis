@@ -1,0 +1,138 @@
+# 1. 准备工作
+# ==========================================
+# 加载我们需要的包
+library(dplyr)
+library(mice)
+library(broom)
+source("paths.R")
+
+# 2. 最终数据整合 (明确展示每一步)
+# ==========================================
+
+# 步骤 A: 清理并准备需要新加入的数据框，统一ID列名
+print("步骤 A: 正在准备MVPA和认知得分数据...")
+mvpa_clean <- Derived_accelerometry %>%
+  transmute(
+    Participant_ID = `Participant ID`,
+    overall_mvpa_hours = `Moderate-Vigorous - Overall average | Instance 0` * 24  # 转换为每天MVPA小时数
+  )
+
+cognitive_score_clean <- cognitive_scores %>%
+  select(
+    Participant_ID,
+    cognitive_score_0,
+    cognitive_change
+  )
+print("步骤 A 完成。")
+
+# 步骤 B: 将所有数据源合并，创建包含所有潜在缺失值的最完整数据框
+print("步骤 B: 正在合并所有数据框...")
+baseline_table_step1_clean <- baseline_table_step1 %>%
+  select(-any_of(c("cognitive_score_0")))
+full_merged_table <- final_dataset %>%
+  left_join(baseline_table_step1_clean, by = "Participant_ID") %>%
+  left_join(mvpa_clean, by = "Participant_ID") %>%
+  left_join(cognitive_score_clean, by = "Participant_ID")
+print("步骤 B 完成，`full_merged_table` 已创建。")
+
+
+# 3. 多重插补 (Impute)
+# ==========================================
+
+# 步骤 C: 定义我们最终模型需要的所有变量
+all_model_vars <- c(
+  "Participant_ID", 
+  "cognitive_change",  # <--- 结局变量
+  "overall_mvpa_hours",  # <--- 核心自变量
+  "age_recruitment", "sex", "townsend_index", "bmi", 
+  "smoking_status", "alcohol_status", "education_level", "cvd_history_any", 
+  "history_diabetes", "cognitive_score_0" # 协变量列表
+)
+
+# 步骤 D: 从完整数据中，只挑选出用于插补和模型分析的变量
+imputation_data <- full_merged_table %>%
+  select(all_of(all_model_vars))
+imputation_data_for_mice <- imputation_data %>%
+  select(-Participant_ID)
+
+# 步骤 E: 执行多重插补 [警告：这一步可能非常耗时！]
+print("步骤 E: 开始执行多重插补，请耐心等待...")
+imputed_object <- mice(imputation_data_for_mice, m = 10, seed = 123, maxit = 5, printFlag = FALSE)
+print("步骤 E 完成，多重插补已生成！")
+
+
+# 4. 在每个插补数据集上运行分层分析 (Analyze)
+# ==========================================
+
+# 步骤 F: 定义我们三个线性模型的公式
+formula_lm0 <- as.formula("cognitive_change ~ overall_mvpa_hours")
+formula_lm1 <- as.formula("cognitive_change ~ overall_mvpa_hours + age_recruitment + sex")
+all_covariates <- c(
+  "age_recruitment", "sex", "townsend_index", "bmi", "smoking_status",
+  "alcohol_status", "education_level", "cvd_history_any", 
+  "history_diabetes", "cognitive_score_0"
+)
+formula_lm2 <- as.formula(
+  paste("cognitive_change ~ overall_mvpa_hours +", 
+        paste(all_covariates, collapse = " + "))
+)
+
+# 步骤 G: 手动循环，运行这三个线性模型
+print("步骤 G: 正在对插补数据集分别运行3个线性模型...")
+lm_model0_list <- list()
+lm_model1_list <- list()
+lm_model2_list <- list()
+
+for (i in 1:imputed_object$m) {
+  completed_data <- complete(imputed_object, i)
+  
+  lm_model0_list[[i]] <- lm(formula_lm0, data = completed_data)
+  lm_model1_list[[i]] <- lm(formula_lm1, data = completed_data)
+  lm_model2_list[[i]] <- lm(formula_lm2, data = completed_data)
+}
+print("步骤 G 完成！")
+
+
+# 5. 汇总所有分析结果 (Pool) 并展示
+# ==========================================
+
+# 步骤 H: 使用 pool() 函数分别汇总三个模型的结果
+pooled_lm0 <- pool(lm_model0_list)
+pooled_lm1 <- pool(lm_model1_list)
+pooled_lm2 <- pool(lm_model2_list)
+
+# 使用 broom::tidy() 函数来提取每个模型的结果
+model0_tidy <- tidy(pooled_lm0, conf.int = TRUE)
+model1_tidy <- tidy(pooled_lm1, conf.int = TRUE)
+model2_tidy <- tidy(pooled_lm2, conf.int = TRUE)
+
+model0_tidy$model <- "Model 0 (Unadjusted)"
+model1_tidy$model <- "Model 1 (Adjusted for Demographics)"
+model2_tidy$model <- "Model 2 (Fully Adjusted)"
+
+all_models_summary_lm_mvpa <- bind_rows(model0_tidy, model1_tidy, model2_tidy)
+
+final_report_table_lm_mvpa <- all_models_summary_lm_mvpa %>%
+  select(model, term, estimate, conf.low, conf.high, p.value) %>%
+  mutate(
+    across(c(estimate, conf.low, conf.high), ~round(.x, 3)),
+    p.value = if_else(p.value < 0.001, "<0.001", as.character(round(p.value, 3)))
+  ) %>%
+  mutate(
+    `Beta (95% CI)` = paste0(estimate, " (", conf.low, " to ", conf.high, ")")
+  ) %>%
+  select(
+    Model = model,
+    Variable = term,
+    `Beta (95% CI)`,
+    `P Value` = p.value
+  )
+
+# 3. 查看与导出
+# ==========================================
+
+print("===== 结果：overall_mvpa_hours vs 认知变化 (线性模型) =====")
+print(as.data.frame(final_report_table_lm_mvpa))
+
+#write.csv(final_report_table_lm_mvpa, file = path_result("linear_model_mvpa_results.csv"), row.names = FALSE)
+write.csv(final_report_table_lm_mvpa, file = path_result("linear_model_mvpa_results.csv"), row.names = FALSE)

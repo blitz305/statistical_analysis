@@ -1,0 +1,37 @@
+# R / RStudio
+.Rhistory
+.RData
+.RData*
+.RDataTmp*
+.Rprofile
+.Rproj.user/
+.Ruserdata
+
+# renv cache (keep activate.R and lockfile tracked)
+renv/library/
+renv/staging/
+renv/.gitignore
+renv/settings.json
+
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Project outputs (ignore generated artifacts)
+mid_result/
+result/
+
+# Quarto / Rmarkdown intermediates (if any)
+*_cache/
+*.knit.md
+*.utf8.md
+*.html
+
+# Temporary files
+*.tmp
+*.log
+
+
