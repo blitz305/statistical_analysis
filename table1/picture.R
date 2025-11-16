@@ -3,6 +3,9 @@
 library(tableone)
 library(dplyr)
 
+# 注意：在运行此脚本前，请先运行 normality_tests.R 来验证变量分布
+# 这将确保 nonnormal 参数设置的科学性和严谨性
+
 
 
 # 2. 核心逻辑 
@@ -48,7 +51,10 @@ print(
   quote = FALSE,           
   noSpaces = TRUE,          # 压缩空格
 
-  nonnormal = c("townsend_index", "sedentary_hours"),
+  # 注意：以下变量基于正态性检验结果标记为非正态分布
+  # 所有连续变量都未通过 Kolmogorov-Smirnov 检验 (p < 0.01)
+  # 详见 normality_tests.R 的检验结果
+  nonnormal = c("age_recruitment", "townsend_index", "bmi", "sedentary_hours", "cognitive_score_0"),
   # 控制小数位数
   contDigits = 1,
   catDigits = 1
@@ -62,7 +68,9 @@ tableOneMatrix <- print(
   showAllLevels = TRUE,
   quote = FALSE,
   noSpaces = TRUE,
-  printToggle = FALSE
+  printToggle = FALSE,
+  # 保持与上面相同的 nonnormal 参数
+  nonnormal = c("age_recruitment", "townsend_index", "bmi", "sedentary_hours", "cognitive_score_0")
 )
 
 # 步骤 E: 使用 kable() 函数来美化表格

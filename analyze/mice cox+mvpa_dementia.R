@@ -148,3 +148,13 @@ print("===== 结果：overall_mvpa vs 痴呆风险 (Cox模型) =====")
 print(as.data.frame(final_report_table_cox_mvpa))
 
 write.csv(final_report_table_cox_mvpa, file = path_result("cox_model_mvpa_results.csv"), row.names = FALSE)
+
+# 美化输出结果表格
+# ==========================================
+print("步骤 H: 正在美化输出结果表格...")
+source("beautify_results.R")
+beautify_model_results(
+  path_result("cox_model_mvpa_results.csv"),
+  path_result("cox_model_mvpa_results_beautified.png")
+)
+print("步骤 H 完成，美化表格已生成。")

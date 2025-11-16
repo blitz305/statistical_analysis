@@ -161,17 +161,17 @@ smoking_clean <- Smokeing %>%
   # 使用 mutate 和 case_when 将您的规则转换为代码
   mutate(
     smoking_status_text = case_when(
-      # 规则: Classified as Current (2)
+      # 规则: 当前吸烟者 - 如果个人目前吸烟=大多数日子（1）或偶尔（2）
       current_smoking %in% c(1, 2) ~ "Current smoker",
       
-      # 规则: Classified as Previous (1)
-      current_smoking == 0 & past_smoking %in% c(1, 2) ~ "Former smoker",
+      # 规则: 曾经吸烟者 - 如果当前吸烟=不吸烟（0）且过去吸烟=大多数日子（1）或偶尔（2）或尝试过一两次（3）
+      current_smoking == 0 & past_smoking %in% c(1, 2, 3) ~ "Former smoker",
       
-      # 规则: Classified as Never (0)
-      (current_smoking %in% c(0, -3)) & (past_smoking %in% c(3, 4)) ~ "Never smoker",
+      # 规则: 从不吸烟者 - 如果当前吸烟=不吸烟（0）且过去吸烟=从不吸烟（4）
+      current_smoking == 0 & past_smoking == 4 ~ "Never smoker",
       
-      # 规则: 将"Prefer not to answer"归为NA
-      (current_smoking == -3 & past_smoking %in% c(1, 2)) | (current_smoking == 0 & past_smoking == -3) ~ NA_character_,
+      # 规则: 将"不知道"（-1）、"不愿意回答"（-3）和"以上都不是"（-7）归为NA
+      current_smoking %in% c(-1, -3, -7) | past_smoking %in% c(-1, -3, -7) ~ NA_character_,
       
       # 对于任何不符合以上规则的组合（例如原始数据就是NA），我们将其归为NA
       TRUE ~ NA_character_
@@ -270,7 +270,12 @@ cvd_clean <- Medical_conditions %>%
         history_angina == 1 | 
         history_stroke == 1 | 
         history_high_bp == 1
-    )
+    ),
+    
+    # 步骤 4: 将 cvd_history_any 转换为因子以便在TableOne中正确显示
+    cvd_history_any = factor(cvd_history_any, 
+                            levels = c(0, 1), 
+                            labels = c("No", "Yes"))
   ) %>%
   # 只保留最终需要的ID和我们新创建的变量
   select(
