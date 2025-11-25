@@ -1,5 +1,6 @@
 # UKB Statistical Analysis Toolkit ✨
-
+** IMPORTANCE
+It is not advised to copy and use it directly , as the reproducibility was not considered at the beginning
 Welcome aboard! This toolkit packages the end-to-end statistical workflows built on UK Biobank accelerometry and registry data. It walks you through cognitive feature processing (Phase A), activity regularity & exposure clustering (Phase B), plus survival/clinical outcome modeling (Phase C). Alongside the main pipelines it ships a reproducible environment, quick validation scripts, and code for manuscript-ready tables.
 
 ## Repository Layout 🗂️
@@ -64,5 +65,4 @@ Rscript survival_outcomes/C.main.R
 - **Missing packages or version mismatches**: confirm `renv::restore()` has completed; if needed, remove `renv/library` and rerun the restore.
 - **Scripts cannot find data**: check the directories defined in `paths.R` and verify read/write permissions.
 - **Long-running modules**: wrap expensive logic in functions and call them from `B.main.R` or `C.main.R` so downstream analyses can reuse them.
-
 Keep README updates in this structure (but feel free to keep the ✨ energy!) when documenting new directories or phases so collaborators can onboard quickly.
