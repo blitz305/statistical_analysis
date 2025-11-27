@@ -1,7 +1,9 @@
 # UKB Statistical Analysis Toolkit ✨
-## IMPORTANCE
-It is not advised to copy and use it directly , as the reproducibility was not considered at the beginning
+
 Welcome aboard! This toolkit packages the end-to-end statistical workflows built on UK Biobank accelerometry and registry data. It walks you through cognitive feature processing (Phase A), activity regularity & exposure clustering (Phase B), plus survival/clinical outcome modeling (Phase C). Alongside the main pipelines it ships a reproducible environment, quick validation scripts, and code for manuscript-ready tables.
+
+## IMPORTANCE
+It is not advised to copy and use it directly , as the reproducibility was not considered at the beginning!!!
 
 ## Repository Layout 🗂️
 - `cognitive_features/` (formerly `A/`): cleans and summarizes raw cognitive tests and screening fields. Use `A.cognitive_result.R` as the entry point to kick off Phase A.
