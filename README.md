@@ -1,68 +1,143 @@
 # UKB Statistical Analysis Toolkit ✨
 
-Welcome aboard! This toolkit packages the end-to-end statistical workflows built on UK Biobank accelerometry and registry data. It walks you through cognitive feature processing (Phase A), activity regularity & exposure clustering (Phase B), plus survival/clinical outcome modeling (Phase C). Alongside the main pipelines it ships a reproducible environment, quick validation scripts, and code for manuscript-ready tables.
+Welcome aboard! This toolkit packages the end-to-end statistical workflows built on UK Biobank accelerometry and registry data. It walks you through cognitive feature processing, activity regularity & exposure clustering, plus survival/clinical outcome modeling.
 
 ## Repository Layout 🗂️
-- `cognitive_features/` (formerly `A/`): cleans and summarizes raw cognitive tests and screening fields. Use `A.cognitive_result.R` as the entry point to kick off Phase A.
-- `activity_regularity/` (formerly `B/`): segments accelerometer features, performs clustering, and computes regularity scores. Run `B.main.R` to orchestrate the module scripts in this directory.
-- `survival_outcomes/` (formerly `C/`): prepares death and dementia outcomes, resolves conflicts, and derives survival time. Use `C.main.R` to execute Phase C.
-- `analyze/`: houses MICE + cox/gam/lm specifications. Scripts follow the "model+exposure/outcome" naming scheme and run via `Rscript analyze/<script>.R`.
-- `quick_checks/`: lightweight validation or exploratory scripts (for example `regular_score+demential_cox.R`). Use commands like `Rscript quick_checks/not_covariates.R` for rapid inspection.
-- `EDA/`: exploratory figures and ad-hoc analyses.
-- `table1/`: scripts that generate publication-ready tables.
-- `paths.R`: centralized definitions of data I/O paths, seeds, and cache locations; every new script should reuse these constants.
-- `renv/` and `renv.lock`: `renv`-managed dependency snapshot.
-- `UKb.Rproj`: opens the repo as an RStudio project.
+
+```
+├── 01_data_preparation/              # 数据准备与清洗
+│   ├── table.R                       # 基线表数据清洗 + TableOne生成
+│   └── table_cluster.R               # 聚类分析基线表 + TableOne生成
+│
+├── 02_feature_engineering/           # 特征工程
+│   │
+│   ├── A1_cognitive_score_famd.R     # 认知得分计算 (FAMD)
+│   │
+│   ├── B0_main.R                     # B模块主入口 (运行B1-B4)
+│   ├── B1_diurnal_variability.R      # 日内时段活动变异性
+│   ├── B2_intensity_variability.R    # 日间MVPA强度变异性
+│   ├── B3_weekday_variability.R      # 周内各天活动变异性
+│   ├── B4_regularity_score_pca.R     # PCA合成规律性得分
+│   ├── B5_mvpa_weekly_pattern.R      # 周MVPA模式分类 (独立运行)
+│   ├── B6_mvpa_time_pattern.R        # 日内MVPA时段模式 (独立运行)
+│   ├── B7_exposure_cluster.R         # K-prototypes暴露聚类 (独立运行)
+│   │
+│   ├── C0_main.R                     # C模块主入口 (运行C1-C5)
+│   ├── C1_dementia_icd10.R           # ICD10住院记录痴呆诊断
+│   ├── C2_death_dementia.R           # 死亡登记痴呆诊断
+│   ├── C3_dementia_merge.R           # 合并住院与死亡记录
+│   ├── C3b_dementia_conflict.R       # 诊断冲突处理 (备用)
+│   ├── C4_endpoint_status.R          # 定义终点事件状态
+│   ├── C5_survival_time.R            # 计算生存时间
+│   └── C6_competing_risk.R           # 竞争风险数据准备 (独立运行)
+│
+├── 03_analysis/                      # 统计分析
+│   ├── cox_models/                   # Cox回归分析（痴呆结局）
+│   │   ├── mice_cox_classify_dementia.R
+│   │   ├── mice_cox_cluster_dementia.R
+│   │   ├── mice_cox_mvpa_dementia.R
+│   │   ├── mice_cox_regular_dementia.R
+│   │   ├── mice_cox_time_pattern_dementia.R
+│   │   └── competing_risk_classify_dementia.R
+│   │
+│   ├── linear_models/                # 线性模型分析（认知结局）
+│   │   ├── mice_lm_classify_cognitive.R
+│   │   ├── mice_lm_cluster_cognitive.R
+│   │   ├── mice_lm_mvpa_cognitive.R
+│   │   ├── mice_lm_regular_cognitive.R
+│   │   ├── mice_lm_time_pattern_cognitive.R
+│   │   └── mice_lm_sleep_cognitive.R
+│   │
+│   └── nonlinear_models/             # 非线性模型分析
+│       ├── mice_gam_sleep_cognitive.R
+│       └── mice_rcs_sleep_cognitive.R
+│
+├── 04_eda/                           # 探索性数据分析
+│   ├── EDA.R                         # 基础EDA
+│   ├── EDA2.R                        # 扩展EDA
+│   ├── EDA_IPAQ.R                    # IPAQ数据EDA
+│   ├── age_group_exploration.R       # 年龄分组探索
+│   ├── dementia_cognitive_overlap.R  # 痴呆与认知重叠分析
+│   ├── mixed_evening_type_profile.R  # 混合/傍晚型特征分析
+│   ├── mvpa_cognitive_smooth_plot.R  # MVPA-认知平滑图
+│   └── sleep_cognitive_smooth_plot.R # 睡眠-认知平滑图
+│
+├── 05_tables_figures/                # 表格与图表生成
+│   ├── beautify_results.R            # 结果美化
+│   └── normality_tests.R             # 正态性检验
+│
+├── 06_validation/                    # 验证与快速检查
+│   ├── not_covariates.R              # 协变量验证
+│   └── regular_score_dementia_cox.R  # 规律性得分验证
+│
+├── data/                             # 数据文件
+├── mid_result/                       # 中间结果
+├── result/                           # 最终结果
+├── renv/                             # R环境
+├── paths.R                           # 路径配置
+└── UKb.Rproj                         # RStudio项目文件
+```
 
 ## Environment Setup ⚙️
-1. **Install dependencies**: run `R -q -e "renv::restore()"` in the repo root to sync the package versions stored in `renv.lock`.
-2. **Configure data paths**: edit `paths.R` to match your filesystem so every phase can find its inputs and outputs.
-3. **Match the R version**: use the version recorded by `renv` (typically 4.x) to avoid untested runtime differences.
+
+1. **Install dependencies**: run `R -q -e "renv::restore()"` in the repo root
+2. **Configure data paths**: edit `paths.R` to match your filesystem
+3. **Match the R version**: use the version recorded by `renv` (typically 4.x)
 
 ## Workflow Overview 🚀
-### 1. Phase A – Cognitive Features 🧠
+
+### 1. Data Preparation (01_data_preparation/)
 ```bash
-Rscript cognitive_features/A.cognitive_result.R
+Rscript 01_data_preparation/table.R          # 基线表 + TableOne
+Rscript 01_data_preparation/table_cluster.R  # 聚类基线表 + TableOne
 ```
-- Aggregates and cleans cognitive assessment results.
-- Produces intermediate tables consumed by the activity-regularity and survival pipelines.
 
-### 2. Phase B – Activity Regularity 🔄
+### 2. Feature Engineering (02_feature_engineering/)
 ```bash
-Rscript activity_regularity/B.main.R
-```
-`B.main.R` sequentially sources:
-- `B.classify_time_of_day.R` / `B.classify.R` for time-of-day segmentation and activity context.
-- `B.clusterize_exposures.R` for exposure pattern aggregation.
-- `B.diurnal_regularity.R`, `B.intensity_consistency.R`, `B.regularity_socre.R`, `B.Temporal Regularity.R` for regularity scores and intensity consistency metrics.
-- The final tables are written to the destinations defined in `paths.R`.
+# 认知特征
+Rscript 02_feature_engineering/A1_cognitive_score_famd.R
 
-### 3. Phase C – Survival & Outcomes ❤️‍🔥
+# 活动规律性 (B0运行B1-B4)
+Rscript 02_feature_engineering/B0_main.R
+
+# 生存结局 (C0运行C1-C5)
+Rscript 02_feature_engineering/C0_main.R
+
+# 独立模块 (按需运行)
+Rscript 02_feature_engineering/B5_mvpa_weekly_pattern.R   # 周模式分类
+Rscript 02_feature_engineering/B6_mvpa_time_pattern.R     # 时段模式分类
+Rscript 02_feature_engineering/B7_exposure_cluster.R      # 暴露聚类
+Rscript 02_feature_engineering/C6_competing_risk.R        # 竞争风险
+```
+
+### 3. Statistical Analysis (03_analysis/)
 ```bash
-Rscript survival_outcomes/C.main.R
+# Cox回归（痴呆结局）
+Rscript 03_analysis/cox_models/mice_cox_regular_dementia.R
+
+# 线性模型（认知结局）
+Rscript 03_analysis/linear_models/mice_lm_mvpa_cognitive.R
+
+# 非线性模型
+Rscript 03_analysis/nonlinear_models/mice_gam_sleep_cognitive.R
 ```
-- Scripts such as `C.outcome_variables.R`, `C.death_register.R`, and `C.dementia_classify.R` build outcome variables and follow-up times.
-- `C.conflict.R` and `C.competing_risk_preparation.R` handle conflict checks and competing-risk structures.
 
-### 4. Analysis & Modeling 📊
-- Choose a script under `analyze/`, for example:
-  - `Rscript analyze/mice\ cox+regular_dementia.R` to evaluate how regularity scores relate to dementia.
-  - `Rscript analyze/mice_lm\ +mvpa_cognitive.R` to probe the linear relation between MVPA and cognition.
-- Set seeds and cohort filters at the top of each script to keep runs reproducible.
+### 4. EDA & Visualization (04_eda/)
+```bash
+Rscript 04_eda/mvpa_cognitive_smooth_plot.R
+Rscript 04_eda/sleep_cognitive_smooth_plot.R
+```
 
-### 5. Quick Validation & QA 🕵️‍♀️
-- Keep one-off validation logic in `quick_checks/` so the main workflow stays clean.
-- Example: `Rscript quick_checks/regular_score+demential_cox.R`.
-- Before submitting changes, rerun at least one `analyze/` path (or the matching quick check) and capture key metrics (c-index, HR, etc.) from the console output.
+## Coding Style 📝
+
+- tidyverse style: 2-space indent, `<-` assignment, snake_case names
+- Script naming: `{Module}{Number}_{description}.R`
+- Keep scripts executable via `Rscript`
+- Use `dplyr` pipelines over nested base-R
+- Document non-obvious constants with inline comments
 
 ## Contribution Guidelines 🤝
-- Follow tidyverse style (2-space indent, `<-` assignment, snake_case names).
-- Ensure any new data outputs do **not** add sensitive CSVs/raw data to Git.
-- Commit example: `feat: add diurnal regularity scorer`. Describe model/data changes in the PR body and attach screenshots whenever UI/figure outputs change.
 
-## FAQ 💡
-- **Missing packages or version mismatches**: confirm `renv::restore()` has completed; if needed, remove `renv/library` and rerun the restore.
-- **Scripts cannot find data**: check the directories defined in `paths.R` and verify read/write permissions.
-- **Long-running modules**: wrap expensive logic in functions and call them from `B.main.R` or `C.main.R` so downstream analyses can reuse them.
-
-Keep README updates in this structure (but feel free to keep the ✨ energy!) when documenting new directories or phases so collaborators can onboard quickly.
+- Conventional commit messages (e.g., `feat: add diurnal regularity scorer`)
+- Ensure sensitive data remains untracked by Git
+- Attach screenshots for UI/figure changes in PRs
