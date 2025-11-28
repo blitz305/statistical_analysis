@@ -2,6 +2,9 @@
 
 Welcome aboard! This toolkit packages the end-to-end statistical workflows built on UK Biobank accelerometry and registry data. It walks you through cognitive feature processing, activity regularity & exposure clustering, plus survival/clinical outcome modeling.
 
+## IMPORTANCE
+It is not advised to copy and use it directly , as the reproducibility was not considered at the beginning!!!
+
 ## Repository Layout 🗂️
 
 ```
